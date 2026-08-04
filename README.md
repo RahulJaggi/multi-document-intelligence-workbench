@@ -1,12 +1,12 @@
 # Multi-Document Intelligence Workbench
 
-Multi-Document Intelligence Workbench is a full-stack, local-first AI application designed to aggregate, parse, compare, and extract insights from multiple files simultaneously. Users can upload various documents (PDF and TXT), provide customized analysis instructions (or choose from common presets), and receive structured, citation-aware AI-powered insights.
+Multi-Document Intelligence Workbench is a full-stack, local-first AI application designed to aggregate, parse, compare, and extract structured insights from multiple files simultaneously. Users can upload multiple documents (PDF and TXT), provide custom analysis queries (or select from a list of predefined presets), and receive structured, citation-aware AI-powered insights.
 
 The platform is designed to be **privacy-first**, utilizing a local **Ollama** model runner instead of cloud-based APIs, ensuring that all document parsing, text extraction, and model inference remain entirely on the local machine.
 
 ---
 
-## 📂 Table of Contents
+## Table of Contents
 1. [Project Overview](#project-overview)
 2. [Features](#features)
 3. [Tech Stack](#tech-stack)
@@ -28,9 +28,10 @@ The platform is designed to be **privacy-first**, utilizing a local **Ollama** m
 
 ---
 
-## 🔍 Project Overview
+## Project Overview
 
-The **Multi-Document Intelligence Workbench** acts as an analytical workspace where you can upload documents and execute cross-document queries. 
+The **Multi-Document Intelligence Workbench** acts as an analytical workspace where you can upload documents and execute cross-document queries.
+
 - **Upload**: Drop up to 10 files (PDF or TXT, up to 10MB each) into the staging area.
 - **Instruct**: Enter custom queries such as comparing contract start dates, listing key stakeholders, or searching for inconsistencies.
 - **Understand**: The system extracts the text contents, formats a custom prompt preserving document boundaries, and streams it to **Ollama** running locally.
@@ -38,7 +39,7 @@ The **Multi-Document Intelligence Workbench** acts as an analytical workspace wh
 
 ---
 
-## ⚡ Features
+## Features
 
 - **Ingestion & Processing**:
   - Drag-and-drop file uploader supporting Multi-file uploads.
@@ -62,7 +63,7 @@ The **Multi-Document Intelligence Workbench** acts as an analytical workspace wh
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **React 19**: Modern component lifecycle, hooks, and clean state propagation.
@@ -92,9 +93,44 @@ The **Multi-Document Intelligence Workbench** acts as an analytical workspace wh
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The workspace is organized as an npm workspaces monorepo separating client UI logic and Express REST servers.
+
+### Conceptual Flow Chart
+
+```
++--------------------------------------------------------------------+
+|                           React Client                             |
+|          (UploadSection, PromptSection, ResultsSection)            |
++--------------------------------------------------------------------+
+                                   |
+                         (Axios HTTP Requests)
+                                   v
++--------------------------------------------------------------------+
+|                         Express API Gateway                        |
+|             (app.ts, Router Registry, CORS, Helmet)                |
++--------------------------------------------------------------------+
+           /                                              \
+          / (Ingest Multi-part)                            \ (Context Analysis)
+         v                                                  v
++-----------------------+                         +------------------+
+|   Multer Ingestor &   |                         |  Prompt Builder  |
+|   Document Parsers    |                         |     Service      |
+|  (pdf-parse / fs)     |                         | (Boundaries, JSON|
++-----------------------+                         |  output format)  |
+                                                  +------------------+
+                                                            |
+                                                   (Axios HTTP Client)
+                                                            v
+                                                  +------------------+
+                                                  |   Local Ollama   |
+                                                  |     Service      |
+                                                  | (qwen2.5:7b model|
+                                                  +------------------+
+```
+
+### System Architecture Diagram
 
 ```mermaid
 graph TD
@@ -109,17 +145,9 @@ graph TD
     A -->|8. Render Tables, Cards, Logs| F[Frontend Results Section]
 ```
 
-### Flow Component Mapping:
-1. **React Frontend**: Hosts the drag-and-drop workspace UI capturing upload drops and custom prompt instructions.
-2. **REST API**: Mounts `/api/upload` (Multer file limits checking) and `/api/analyze` endpoints.
-3. **Document Parser**: Dispatches text extractions to PDF engine or Node read buffers.
-4. **Prompt Builder**: Formats the extracted texts, filenames, and strict rules into a separate block prompt context.
-5. **Local Ollama**: Executes local inference with configured JSON mode (`format: 'json'`) returning JSON strings.
-6. **Frontend Results**: Parses response blocks into custom comparison tables, summary cards, and citations.
-
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 multi-document-intelligence-workbench/
@@ -170,7 +198,7 @@ multi-document-intelligence-workbench/
 
 ---
 
-## 🔄 Application Workflow
+## Application Workflow
 
 ```mermaid
 sequenceDiagram
@@ -179,7 +207,9 @@ sequenceDiagram
     participant FE as Frontend (React)
     participant BE as Backend (Express)
     participant parser as Parser Service
+    participant prompt as Prompt Builder
     participant Ollama as Local Ollama LLM
+    participant results as FE Results Renderer
 
     User->>FE: Drop files onto Upload Card
     FE->>FE: Validate extensions & size limits (<10MB)
@@ -191,16 +221,18 @@ sequenceDiagram
     Note over FE: Stored in parent uploadedDocs State
     User->>FE: Input query & click Run Analysis
     FE->>BE: POST /api/analyze (Payload + instruction)
-    BE->>BE: Build Prompt with separate Document boundaries
+    BE->>prompt: buildPrompt(documents, instruction)
+    prompt-->>BE: Return compiled prompt string
     BE->>Ollama: POST /api/generate (with format:json)
     Ollama-->>BE: Return raw JSON string
     BE-->>FE: Return structured JSON response
-    Note over FE: Render Summary, Findings Cards, Comparison Table
+    FE->>results: Map & render parsed components
+    results-->>User: Render Summary, Findings Cards, Comparison Table
 ```
 
 ---
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### 1. Health Check
 Checks if the backend API service is running.
@@ -267,17 +299,24 @@ Queries the local Ollama LLM with custom queries and document context, returning
   {
     "summary": "The document contains the resume details of Jane Doe.",
     "findings": [
-      "Jane has 5 years of typescript experience (supported by resume.pdf)"
+      {
+        "finding": "Jane has 5 years of TypeScript experience",
+        "source": ["resume.pdf"]
+      }
     ],
     "comparison": [
       "Field | resume.pdf | vacancy.txt | Status",
       "Languages | TypeScript, Node | TypeScript | Match"
     ],
     "missingInformation": [
-      "No salary expectations are listed."
+      {
+        "info": "No salary expectations are listed."
+      }
     ],
     "sources": [
-      "resume.pdf"
+      {
+        "name": "resume.pdf"
+      }
     ]
   }
   ```
@@ -293,9 +332,10 @@ Queries the local Ollama LLM with custom queries and document context, returning
 
 ---
 
-## ⚙️ AI Pipeline
+## AI Pipeline
 
 The application processes inputs in a sequential, structured pipeline:
+
 1. **Document Upload**: Multi-file payload arrives at the backend.
 2. **File Validation**: Multer checks file count (max 10), mime-types (PDF or TXT only), and size limits (<10MB each).
 3. **Text Extraction**: The parser router delegates TXT to filesystem text readers and PDF to buffer parse streams.
@@ -306,7 +346,7 @@ The application processes inputs in a sequential, structured pipeline:
 
 ---
 
-## 📝 Prompt Engineering
+## Prompt Engineering
 
 The system uses a highly structured prompt configuration to optimize local LLM responses:
 
@@ -319,10 +359,10 @@ The system uses a highly structured prompt configuration to optimize local LLM r
 
 ---
 
-## 🔒 Security Considerations
+## Security Considerations
 
 - **File Extensions & Mime-Types**: Strict whitelist validation blocks non-PDF/non-TXT uploads, mitigating remote execution risks.
-- **Size & Count Safeguards**: Hard caps (10MB per file, max 10 files) protect the server from disk exhaustion or memory exhaustion.
+- **Size & Count Safeguards**: Hard caps (10MB per file, max 10 files) protect the server from disk or memory exhaustion.
 - **File System Namespacing**: UUIDs replace user-provided filenames on the server disk, preventing directory traversal attacks.
 - **Input Sanitization**: Request bodies undergo strict type checks before processing.
 - **Local AI Execution**: All document data is processed locally. No external APIs or cloud LLMs are queried, preventing data leakage.
@@ -330,7 +370,7 @@ The system uses a highly structured prompt configuration to optimize local LLM r
 
 ---
 
-## 💡 Assumptions
+## Assumptions
 
 - **Local Infrastructure**: It is assumed the host machine has **Ollama** installed and running on `http://localhost:11434` with the `qwen2.5:7b` model pulled.
 - **Document Readability**: Extracted texts are assumed to be plain ASCII/UTF-8. Highly stylized layouts or scanned images without OCR may yield limited extraction results.
@@ -338,7 +378,7 @@ The system uses a highly structured prompt configuration to optimize local LLM r
 
 ---
 
-## ⚠️ Known Limitations
+## Known Limitations
 
 - **OCR Support**: Scanned PDFs (images) will yield empty extractions as the system does not run local Optical Character Recognition (OCR) libraries.
 - **Token Limits**: Large documents (e.g. >100 pages) may exceed the default context window length of the local Ollama runner, resulting in truncated context or incomplete analysis.
@@ -346,7 +386,7 @@ The system uses a highly structured prompt configuration to optimize local LLM r
 
 ---
 
-## 🚀 Production Improvements
+## Production Improvements
 
 To run this application in a production environment, consider the following enhancements:
 
@@ -362,7 +402,7 @@ To run this application in a production environment, consider the following enha
 
 ---
 
-## 💻 Local Development
+## Local Development
 
 ### 1. Prerequisites
 - **Node.js**: `v20.x` or newer (Recommended: `v25.x`)
@@ -412,7 +452,7 @@ npm run dev
 
 ---
 
-## 🌐 Environment Variables
+## Environment Variables
 
 Define the following environment variables in `backend/.env` (based on [`backend/.env.example`](file:///Users/rahuljaggi/Documents/GithubProjects/multi-document-intelligence-workbench/backend/.env.example)):
 
@@ -425,20 +465,15 @@ Define the following environment variables in `backend/.env` (based on [`backend
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
-### 1. Application Home
-*(Placeholder for Home screen screenshot - showing the workspace dashboard layout)*
-
-### 2. Upload Documents
-*(Placeholder for Upload interface screenshot - showing file drag-and-drop actions)*
-
-### 3. Analysis Results
-*(Placeholder for Insights screenshot - showing summary cards, findings grid, and comparison tables)*
+| Application Home | Upload Documents | Analysis Results |
+| :---: | :---: | :---: |
+| ![Application Home](screenshots/home.png) | ![Upload Documents](screenshots/upload.png) | ![Analysis Results](screenshots/results.png) |
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Running API Health Checks
 You can verify the backend is running by executing:
@@ -458,6 +493,6 @@ npm run build -w frontend
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
