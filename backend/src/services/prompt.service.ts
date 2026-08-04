@@ -5,7 +5,7 @@ export interface PromptDocument {
 }
 
 /**
- * Builds the structured prompt for the Ollama model.
+ * Generates a clean, structured analysis prompt for a local Ollama model.
  * Preserves boundaries and formats the context and rules clearly.
  *
  * @param documents List of parsed documents with extracted text.
@@ -16,49 +16,59 @@ export const buildPrompt = (
   documents: PromptDocument[],
   userInstruction: string
 ): string => {
-  let prompt = 'You are an AI document analyst.\n\n';
+  let prompt = `You are an AI document analyst.
 
-  // Append each document with strict boundaries
-  documents.forEach((doc, idx) => {
-    prompt += `Document ${idx + 1}\n\n`;
-    prompt += `Filename:\n${doc.fileName}\n\n`;
-    prompt += `Document Type:\n${doc.fileType}\n\n`;
-    prompt += `Content:\n${doc.extractedText}\n\n`;
-    prompt += `-------------------------\n\n`;
-  });
+Your task is to analyze one or more uploaded documents.
 
-  // Append user instruction
-  prompt += `User Instruction:\n${userInstruction}\n\n`;
+Rules:
 
-  // Append rules and JSON schema instructions
-  prompt += `Rules:
-- Answer only using the uploaded documents.
-- Mention which document supports each finding (mention source document).
-- Do not make assumptions or hallucinate.
-- If comparison is impossible, explain why.
-- Return structured JSON only.
+- Answer ONLY using information found in the uploaded documents.
+- Never invent information.
+- If information is missing, clearly state that it was not found.
+- If documents cannot be meaningfully compared, explain why.
+- Always mention which document supports each finding.
+- Clearly separate extracted facts from interpretations.
+- Return ONLY valid JSON.
+- Do NOT return Markdown.
+- Do NOT wrap JSON inside triple backticks.
 
-Your output must follow this exact JSON schema:
+The JSON format should be:
+
 {
-  "summary": "A brief overall summary of the documents and analysis",
-  "findings": [
-    "Finding 1 (supported by Document X)",
-    "Finding 2 (supported by Document Y)"
-  ],
-  "comparison": [
-    "Field | Document A | Document B | Status",
-    "Comparison/contrast point 1",
-    "Comparison/contrast point 2"
-  ],
-  "missingInformation": [
-    "Any gaps, missing data, or why comparison might be impossible/limited"
-  ],
-  "sources": [
-    "Filename of source documents referenced"
-  ]
+  "summary": "...",
+  "findings": [],
+  "comparison": [],
+  "missingInformation": [],
+  "sources": []
 }
 
-Respond ONLY with the JSON block. Do not wrap it in markdown code blocks like \`\`\`json.`;
+`;
+
+  // Append each document preserving boundaries
+  documents.forEach((doc, idx) => {
+    prompt += `------------------------------------
+
+Document ${idx + 1}
+
+Filename:
+${doc.fileName}
+
+File Type:
+${doc.fileType}
+
+Content:
+
+${doc.extractedText}
+
+`;
+  });
+
+  // Closing boundary of the last document
+  prompt += `------------------------------------
+
+User Instruction:
+
+${userInstruction}`;
 
   return prompt;
 };
