@@ -31,7 +31,7 @@ export const Home: React.FC = () => {
               </h4>
               <ul className="space-y-2">
                 {uploadedDocs.map((doc) => {
-                  const isPdf = doc.originalName.toLowerCase().endsWith('.pdf');
+                  const isPdf = doc.fileName.toLowerCase().endsWith('.pdf');
                   return (
                     <li
                       key={doc.id}
@@ -41,7 +41,7 @@ export const Home: React.FC = () => {
                         <span className="text-lg shrink-0">{isPdf ? '📕' : '📄'}</span>
                         <div className="min-w-0">
                           <p className="text-xs font-medium text-slate-200 truncate">
-                            {doc.originalName}
+                            {doc.fileName}
                           </p>
                           <p className="text-[10px] text-slate-500 font-mono truncate select-all">
                             ID: {doc.id}

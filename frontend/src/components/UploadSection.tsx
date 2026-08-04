@@ -3,10 +3,9 @@ import api from '../services/api';
 
 export interface UploadedDocument {
   id: string;
-  originalName: string;
-  filename: string;
-  mimeType?: string;
-  size?: number;
+  fileName: string;
+  fileType: string;
+  extractedText: string;
 }
 
 interface UploadSectionProps {
