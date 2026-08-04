@@ -1,9 +1,10 @@
-import { GoogleGenAI } from '@google/genai';
+import axios from 'axios';
 import { buildPrompt, PromptDocument } from './prompt.service';
 
 /**
- * Sends formatted documents and query instructions to the Gemini model
+ * Sends formatted documents and query instructions to the local Ollama instance
  * and returns the parsed structured JSON analysis results.
+ * Handles timeouts and service unavailable states.
  *
  * @param documents The list of documents containing filename, type, and text content.
  * @param userInstruction The analytical instruction details from the user.
@@ -13,38 +14,60 @@ export const analyzeDocuments = async (
   documents: PromptDocument[],
   userInstruction: string
 ): Promise<any> => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaModel = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
 
-  if (!apiKey) {
-    throw new Error(
-      'GEMINI_API_KEY is not defined. Please set it in your environment variables (.env).'
-    );
-  }
-
-  // Initialize official unified Google Gen AI client
-  const ai = new GoogleGenAI({ apiKey });
-
-  // Generate structured prompt using prompt service
+  // Generate prompt using the prompt service
   const prompt = buildPrompt(documents, userInstruction);
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
+    // Call local Ollama generate API with timeout (120 seconds)
+    const response = await axios.post(
+      `${ollamaBaseUrl}/api/generate`,
+      {
+        model: ollamaModel,
+        prompt: prompt,
+        stream: false,
+        format: 'json', // Enforce JSON formatting output from local model
       },
-    });
+      {
+        timeout: 120000, // 120 seconds timeout
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const text = response.text;
+    const generatedText = response.data?.response;
 
-    if (!text) {
-      throw new Error('Received an empty response from the AI model.');
+    if (!generatedText) {
+      throw new Error('Received an empty response from local Ollama model.');
     }
 
-    // Parse and return the generated JSON
-    return JSON.parse(text);
+    // Parse and return the generated JSON string
+    return JSON.parse(generatedText);
   } catch (error: any) {
-    throw new Error(`AI Analysis failed: ${error.message}`);
+    // Intercept connection refused, host not found, or timeout errors
+    const isConnectionError =
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'ECONNABORTED' ||
+      error.message?.includes('timeout') ||
+      error.message?.includes('Network Error');
+
+    if (isConnectionError) {
+      const connError = new Error(
+        `Ollama service is unavailable at ${ollamaBaseUrl}. Please ensure Ollama is running locally and the model '${ollamaModel}' is pulled.`
+      );
+      (connError as any).statusCode = 503;
+      throw connError;
+    }
+
+    // Capture JSON parsing errors from poorly formatted LLM outputs
+    if (error instanceof SyntaxError) {
+      throw new Error(`Failed to parse AI response as JSON: ${error.message}`);
+    }
+
+    throw error;
   }
 };

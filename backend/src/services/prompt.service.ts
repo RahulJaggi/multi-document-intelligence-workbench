@@ -5,7 +5,7 @@ export interface PromptDocument {
 }
 
 /**
- * Builds the structured prompt for the LLM to analyze the documents.
+ * Builds the structured prompt for the Ollama model.
  * Preserves boundaries and formats the context and rules clearly.
  *
  * @param documents List of parsed documents with extracted text.
@@ -22,6 +22,7 @@ export const buildPrompt = (
   documents.forEach((doc, idx) => {
     prompt += `Document ${idx + 1}\n\n`;
     prompt += `Filename:\n${doc.fileName}\n\n`;
+    prompt += `Document Type:\n${doc.fileType}\n\n`;
     prompt += `Content:\n${doc.extractedText}\n\n`;
     prompt += `-------------------------\n\n`;
   });
@@ -32,9 +33,9 @@ export const buildPrompt = (
   // Append rules and JSON schema instructions
   prompt += `Rules:
 - Answer only using the uploaded documents.
-- Mention which document supports each finding.
-- If comparison is not possible, explain why.
-- Do not make assumptions.
+- Mention which document supports each finding (mention source document).
+- Do not make assumptions or hallucinate.
+- If comparison is impossible, explain why.
 - Return structured JSON only.
 
 Your output must follow this exact JSON schema:
@@ -45,6 +46,7 @@ Your output must follow this exact JSON schema:
     "Finding 2 (supported by Document Y)"
   ],
   "comparison": [
+    "Field | Document A | Document B | Status",
     "Comparison/contrast point 1",
     "Comparison/contrast point 2"
   ],

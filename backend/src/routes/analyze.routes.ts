@@ -54,7 +54,8 @@ router.post(
       // Return the raw AI analysis JSON response directly as specified
       res.status(200).json(analysis);
     } catch (error: any) {
-      res.status(400).json({
+      const statusCode = error.statusCode === 503 ? 503 : 400;
+      res.status(statusCode).json({
         success: false,
         message: error.message || 'Error occurred during AI analysis.',
       });
