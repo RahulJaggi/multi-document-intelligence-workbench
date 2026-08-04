@@ -1,13 +1,47 @@
 import React, { useState } from 'react';
 import { UploadSection, UploadedDocument } from '../components/UploadSection.js';
 import { PromptSection } from '../components/PromptSection.js';
-import { ResultsSection } from '../components/ResultsSection.js';
+import { ResultsSection, AnalysisResult } from '../components/ResultsSection.js';
+import api from '../services/api.js';
 
 export const Home: React.FC = () => {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocument[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const handleUploadSuccess = (newDocs: UploadedDocument[]) => {
     setUploadedDocs((prev) => [...prev, ...newDocs]);
+  };
+
+  const handleAnalyze = async (instruction: string) => {
+    if (uploadedDocs.length === 0 || !instruction.trim()) return;
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisResult(null);
+
+    // Format payload to expected document parser format: fileName, fileType, extractedText
+    const documentsPayload = uploadedDocs.map((doc) => ({
+      fileName: doc.fileName,
+      fileType: doc.fileType,
+      extractedText: doc.extractedText,
+    }));
+
+    try {
+      const response = await api.post('/analyze', {
+        documents: documentsPayload,
+        instruction,
+      });
+
+      // Response contains summary, findings, comparison, missingInformation, sources directly
+      setAnalysisResult(response.data);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || 'Analysis failed. Please try again.';
+      setAnalysisError(errMsg);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -26,9 +60,21 @@ export const Home: React.FC = () => {
           {/* Uploaded Documents React State Display */}
           {uploadedDocs.length > 0 && (
             <div className="bg-[#151b2d] border border-slate-800 rounded-xl p-5 shadow-xl">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                Active Knowledge Base ({uploadedDocs.length})
-              </h4>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Active Knowledge Base ({uploadedDocs.length})
+                </h4>
+                <button
+                  onClick={() => {
+                    setUploadedDocs([]);
+                    setAnalysisResult(null);
+                    setAnalysisError(null);
+                  }}
+                  className="text-[10px] text-slate-500 hover:text-slate-350 transition-colors uppercase font-bold"
+                >
+                  Clear Base
+                </button>
+              </div>
               <ul className="space-y-2">
                 {uploadedDocs.map((doc) => {
                   const isPdf = doc.fileName.toLowerCase().endsWith('.pdf');
@@ -55,10 +101,18 @@ export const Home: React.FC = () => {
             </div>
           )}
 
-          <PromptSection />
+          <PromptSection
+            onAnalyze={handleAnalyze}
+            isAnalyzing={isAnalyzing}
+            hasDocuments={uploadedDocs.length > 0}
+          />
         </div>
         <div className="lg:col-span-2">
-          <ResultsSection />
+          <ResultsSection
+            result={analysisResult}
+            isAnalyzing={isAnalyzing}
+            error={analysisError}
+          />
         </div>
       </div>
     </div>
