@@ -30,9 +30,9 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isValidFileType = (file: File): boolean => {
-    const mimeTypes = ['application/pdf', 'text/plain'];
+    const mimeTypes = ['application/pdf', 'text/plain', 'text/csv', 'application/csv'];
     const ext = file.name.split('.').pop()?.toLowerCase();
-    return mimeTypes.includes(file.type) || ext === 'pdf' || ext === 'txt';
+    return mimeTypes.includes(file.type) || ext === 'pdf' || ext === 'txt' || ext === 'csv';
   };
 
   const handleFiles = (filesList: FileList) => {
@@ -43,7 +43,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
     for (let i = 0; i < filesList.length; i++) {
       const file = filesList[i];
       if (!isValidFileType(file)) {
-        setUploadError(`Unsupported file type: ${file.name}. Only PDF (.pdf) and TXT (.txt) files are allowed.`);
+        setUploadError(`Unsupported file type: ${file.name}. Only PDF (.pdf), TXT (.txt), and CSV (.csv) files are allowed.`);
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
@@ -156,13 +156,13 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
           onChange={onFileChange}
           multiple
           className="hidden"
-          accept=".pdf,.txt"
+          accept=".pdf,.txt,.csv"
         />
         <div className="text-3xl mb-2">📥</div>
         <p className="text-slate-350 text-sm font-medium">
           Drag & drop files here, or <span className="text-blue-400 hover:underline">browse</span>
         </p>
-        <p className="text-xs text-slate-500 mt-1">Supports PDF (.pdf) and TXT (.txt) up to 10MB each</p>
+        <p className="text-xs text-slate-500 mt-1">Supports PDF (.pdf), TXT (.txt), and CSV (.csv) up to 10MB each</p>
       </div>
 
       {/* Feedback Messages */}
@@ -195,20 +195,25 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
           
           <ul className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
             {selectedFiles.map((file, idx) => {
-              const isPdf = file.name.endsWith('.pdf');
+              const ext = file.name.split('.').pop()?.toLowerCase();
+              const isPdf = ext === 'pdf';
+              const isCsv = ext === 'csv';
+              const icon = isPdf ? '📕' : isCsv ? '📊' : '📄';
+              const fileTypeText = isPdf ? 'PDF' : isCsv ? 'CSV' : 'Text';
+
               return (
                 <li
                   key={idx}
                   className="flex items-center justify-between p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg hover:border-slate-700/60 transition-colors"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
-                    <span className="text-xl shrink-0">{isPdf ? '📕' : '📄'}</span>
+                    <span className="text-xl shrink-0">{icon}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-200 truncate pr-2">
                         {file.name}
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        {formatFileSize(file.size)} &bull; {isPdf ? 'PDF' : 'Text'}
+                        {formatFileSize(file.size)} &bull; {fileTypeText}
                       </p>
                     </div>
                   </div>

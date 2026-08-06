@@ -78,13 +78,16 @@ export const Home: React.FC = () => {
               <ul className="space-y-2">
                 {uploadedDocs.map((doc) => {
                   const isPdf = doc.fileName.toLowerCase().endsWith('.pdf');
+                  const isCsv = doc.fileName.toLowerCase().endsWith('.csv');
+                  const icon = isPdf ? '📕' : isCsv ? '📊' : '📄';
+
                   return (
                     <li
                       key={doc.id}
                       className="flex items-center justify-between p-2.5 bg-slate-900/50 border border-slate-800 rounded-lg"
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
-                        <span className="text-lg shrink-0">{isPdf ? '📕' : '📄'}</span>
+                        <span className="text-lg shrink-0">{icon}</span>
                         <div className="min-w-0">
                           <p className="text-xs font-medium text-slate-200 truncate">
                             {doc.fileName}

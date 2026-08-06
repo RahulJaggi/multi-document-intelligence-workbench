@@ -181,12 +181,12 @@ export const ResultsSection: React.FC<ResultsSectionProps> = ({
       return (
         <li
           key={idx}
-          className="bg-[#0b0f19]/70 border border-slate-800/80 p-4 rounded-lg flex items-start space-x-3 hover:border-slate-700/60 transition-colors shadow-md"
+          className="bg-[#0b0f19]/70 border border-slate-800/80 p-4 rounded-lg flex items-start space-x-3 hover:border-slate-700/60 transition-colors shadow-md min-w-0 overflow-hidden"
         >
           <span className="text-indigo-400 font-semibold shrink-0 text-sm mt-0.5">
             ●
           </span>
-          <p className="text-sm text-slate-200 font-medium leading-normal">
+          <p className="text-sm text-slate-200 font-medium leading-normal break-words whitespace-pre-wrap min-w-0">
             {item}
           </p>
         </li>
@@ -200,30 +200,30 @@ export const ResultsSection: React.FC<ResultsSectionProps> = ({
     return (
       <li
         key={idx}
-        className="bg-[#0b0f19]/70 border border-slate-800/80 p-4 rounded-lg hover:border-slate-750 transition-all shadow-md space-y-3 flex flex-col justify-between"
+        className="bg-[#0b0f19]/70 border border-slate-800/80 p-4 rounded-lg hover:border-slate-750 transition-all shadow-md space-y-3 flex flex-col justify-between min-w-0 overflow-hidden"
       >
-        <div className="flex items-start space-x-3">
+        <div className="flex items-start space-x-3 min-w-0">
           <span className="text-indigo-400 font-semibold shrink-0 text-sm mt-0.5">
             ●
           </span>
-          <h3 className="text-sm font-semibold text-slate-200 leading-normal">
+          <h3 className="text-sm font-semibold text-slate-200 leading-normal break-words whitespace-pre-wrap min-w-0">
             {findingText}
           </h3>
         </div>
         
         {sourceVal && (
-          <div className="text-xs text-slate-400 border-t border-slate-800/60 pt-2 ml-6">
+          <div className="text-xs text-slate-400 border-t border-slate-800/60 pt-2 ml-6 min-w-0 overflow-hidden">
             <span className="font-semibold text-slate-450 block mb-1 text-[10px] uppercase tracking-wider">
               Source:
             </span>
             {Array.isArray(sourceVal) ? (
-              <ul className="list-disc pl-4 space-y-0.5 text-slate-350">
+              <ul className="list-disc pl-4 space-y-0.5 text-slate-350 min-w-0">
                 {sourceVal.map((src, sIdx) => (
-                  <li key={sIdx}>• {String(src)}</li>
+                  <li key={sIdx} className="break-all">• {String(src)}</li>
                 ))}
               </ul>
             ) : (
-              <p className="text-slate-350">★ {String(sourceVal)}</p>
+              <p className="text-slate-350 break-all">★ {String(sourceVal)}</p>
             )}
           </div>
         )}

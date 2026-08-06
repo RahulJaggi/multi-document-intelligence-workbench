@@ -25,14 +25,14 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: FileFilterCallback
 ): void => {
-  const allowedMimeTypes = ['application/pdf', 'text/plain'];
+  const allowedMimeTypes = ['application/pdf', 'text/plain', 'text/csv', 'application/csv'];
   const ext = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = ['.pdf', '.txt'];
+  const allowedExtensions = ['.pdf', '.txt', '.csv'];
 
   if (allowedMimeTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('Unsupported file type. Only PDF (.pdf) and TXT (.txt) files are allowed.'));
+    cb(new Error('Unsupported file type. Only PDF (.pdf), TXT (.txt), and CSV (.csv) files are allowed.'));
   }
 };
 

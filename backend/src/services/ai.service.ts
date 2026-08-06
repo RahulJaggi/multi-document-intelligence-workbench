@@ -8,7 +8,7 @@ import { buildPrompt, PromptDocument } from './prompt.service';
  *
  * @param documents The list of documents containing filename, type, and text content.
  * @param userInstruction The analytical instruction details from the user.
- * @returns Promise<any> The parsed structured JSON analysis object.
+ * @returns Promise<any> The parsed structured JSON analysis results.
  */
 export const analyzeDocuments = async (
   documents: PromptDocument[],
@@ -21,7 +21,7 @@ export const analyzeDocuments = async (
   const prompt = buildPrompt(documents, userInstruction);
 
   try {
-    // Call local Ollama generate API with timeout (120 seconds)
+    // Call local Ollama generate API with timeout (120 seconds) and low temperature options
     const response = await axios.post(
       `${ollamaBaseUrl}/api/generate`,
       {
@@ -29,6 +29,11 @@ export const analyzeDocuments = async (
         prompt: prompt,
         stream: false,
         format: 'json', // Enforce JSON formatting output from local model
+        options: {
+          temperature: 0.0, // Low temperature to maximize determinism
+          top_p: 0.1,       // Strict token selection
+          num_predict: 4096, // High token limit to avoid response truncation
+        },
       },
       {
         timeout: 120000, // 120 seconds timeout
@@ -44,8 +49,31 @@ export const analyzeDocuments = async (
       throw new Error('Received an empty response from local Ollama model.');
     }
 
-    // Parse and return the generated JSON string
-    return JSON.parse(generatedText);
+    // Clean up code fences if present (e.g. ```json ... ```)
+    let cleanedText = generatedText.trim();
+    const fenceMatch = cleanedText.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenceMatch) {
+      cleanedText = fenceMatch[1].trim();
+    }
+
+    try {
+      // Attempt JSON parsing
+      return JSON.parse(cleanedText);
+    } catch (parseError: any) {
+      // Log raw response and error without throwing/crashing the app
+      console.error('Failed to parse raw Ollama response as JSON.');
+      console.error('Raw AI Response:', generatedText);
+      console.error('Parsing Error:', parseError.message);
+
+      // Return a graceful structured error response
+      return {
+        summary: 'Unable to parse AI response.',
+        findings: [],
+        comparison: [],
+        missingInformation: [],
+        sources: [],
+      };
+    }
   } catch (error: any) {
     // Intercept connection refused, host not found, or timeout errors
     const isConnectionError =
